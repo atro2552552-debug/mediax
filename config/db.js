@@ -3,26 +3,30 @@ import { MongoClient } from "mongodb"
 
 dotenv.config()
 
-let db = null;
+let db = null
+let connection = null
 
-export default async function connectDB(){
+export default function connectDB() {
+  if (db) return Promise.resolve(db)
+  if (connection) return connection
 
-   if (db) return db
+  if (!process.env.MONGO_URL) {
+    return Promise.reject(new Error("MONGO_URL is missing from the server environment."))
+  }
 
-    try {
+  const client = new MongoClient(process.env.MONGO_URL, {
+    serverSelectionTimeoutMS: 15000
+  })
 
-     const client = new MongoClient(process.env.MONGO_URL)
+  connection = client.connect()
+    .then(() => {
+      db = client.db("MediaX")
+      return db
+    })
+    .catch((error) => {
+      connection = null
+      throw error
+    })
 
-     await client.connect()
-     db = client.db("MediaX")
-     
-     return db
-
-    }catch(err){
-
-        console.log(err)
-        throw err
-
-    }
-    
+  return connection
 }

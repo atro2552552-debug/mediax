@@ -8,28 +8,34 @@ import jwt from "jsonwebtoken"
 import { v4 as uuid } from "uuid"
 import connectDB from "./config/db.js"
 
-
-import authRoutes from "./auth/auth.js"
-
 dotenv.config()
 
 const app = express()
 const server = createServer(app)
+const corsOptions = { origin: true, credentials: true }
+const io = new Server(server, { cors: corsOptions })
 
-const corsOptions = {
-  origin: true,
-  credentials: true
-}
-
-const io = new Server(server, {
-  cors: corsOptions
-})
-const db = await connectDB()
+let db = null
+let apiReady = false
 
 app.use(cookieParser())
 app.use(cors(corsOptions))
-app.use(express.json({limit:"15mb"}))
-app.use("/api/auth",authRoutes)
+app.use(express.json({ limit: "15mb" }))
+
+app.get("/api/auth/health", (req, res) => {
+  res.status(200).json({ status: apiReady ? "success" : "starting", ready: apiReady })
+})
+
+app.use("/api/auth", (req, res, next) => {
+  if (!apiReady) {
+    return res.status(503).json({
+      status: "starting",
+      message: "The API is connecting to the database. Try again shortly."
+    })
+  }
+
+  next()
+})
 
 io.use((socket, next) => {
   try {
@@ -46,8 +52,10 @@ io.use((socket, next) => {
 })
 
 io.on("connection", (socket) => {
-
-  console.log("connection started");
+  if (!apiReady || !db) {
+    socket.disconnect(true)
+    return
+  }
 
   const userID = socket.userID
   socket.join(userID)
@@ -91,15 +99,30 @@ io.on("connection", (socket) => {
 
       io.to(userID).emit("newMessage", message)
       io.to(receiverId).emit("newMessage", message)
-
       done({ status: "success" })
     } catch (error) {
       console.error("Could not send message:", error)
       done({ error: "Could not send message." })
     }
   })
-
 })
 
+async function startApi() {
+  if (!process.env.MONGO_URL) throw new Error("MONGO_URL is missing from the server environment.")
+  if (!process.env.JWT_SECRET) throw new Error("JWT_SECRET is missing from the server environment.")
 
-server.listen(process.env.PORT)
+  db = await connectDB()
+  const { default: authRoutes } = await import("./auth/auth.js")
+  app.use("/api/auth", authRoutes)
+  apiReady = true
+  console.log("Database connected. API routes are ready.")
+}
+
+const port = process.env.PORT || 8080
+
+server.listen(port, "0.0.0.0", () => {
+  console.log(`Server listening on port ${port}.`)
+  startApi().catch((error) => {
+    console.error("API startup failed:", error)
+  })
+})
