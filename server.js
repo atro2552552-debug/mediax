@@ -16,7 +16,7 @@ dotenv.config()
 const app = express()
 const server = createServer(app)
 
-const allowedOrigins = (process.env.FRONTEND_ORIGINS || "http://localhost:5173,https://localhost")
+const allowedOrigins = (process.env.FRONTEND_ORIGINS || "http://localhost,https://localhost")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean)
