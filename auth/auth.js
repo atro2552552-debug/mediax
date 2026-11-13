@@ -19,6 +19,8 @@ const router = express.Router()
 
 router.get("/health",(req,res)=>{
 
+console.log("health order")
+
 res.status(200).json({status:"success"})
 
 })
