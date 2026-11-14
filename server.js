@@ -12,14 +12,27 @@ dotenv.config()
 
 const app = express()
 const server = createServer(app)
-const corsOptions = { origin: true, credentials: true }
-const io = new Server(server, { cors: corsOptions })
+
+const io = new Server(server,{ cors :{ origin:"https://mediax.wuaze.com"}})
 
 let db = null
 let apiReady = false
 
 app.use(cookieParser())
-app.use(cors(corsOptions))
+
+app.options(/.*/, (req, res) => {
+  const origin = req.get("Origin")
+  const requestedHeaders = req.get("Access-Control-Request-Headers")
+
+  if (origin) res.setHeader("Access-Control-Allow-Origin", origin)
+  res.setHeader("Access-Control-Allow-Credentials", "true")
+  res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS")
+  if (requestedHeaders) res.setHeader("Access-Control-Allow-Headers", requestedHeaders)
+  res.setHeader("Vary", "Origin")
+  res.sendStatus(204)
+})
+
+app.use(cors({origin:"https://mediax.wuaze.com"}))
 app.use(express.json({ limit: "15mb" }))
 
 app.get("/api/auth/health", (req, res) => {
