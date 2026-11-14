@@ -13,7 +13,14 @@ dotenv.config()
 const app = express()
 const server = createServer(app)
 
-const io = new Server(server,{ cors :{ origin:"https://mediax.wuaze.com"}})
+const corsOptions = {
+  origin: true,
+  credentials: true,
+  methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  optionsSuccessStatus: 204
+}
+
+const io = new Server(server, { cors: corsOptions })
 
 let db = null
 let apiReady = false
@@ -24,16 +31,21 @@ app.options(/.*/, (req, res) => {
   const origin = req.get("Origin")
   const requestedHeaders = req.get("Access-Control-Request-Headers")
 
+  console.log("CORS preflight:", origin || "no origin", req.path)
+
   if (origin) res.setHeader("Access-Control-Allow-Origin", origin)
   res.setHeader("Access-Control-Allow-Credentials", "true")
   res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS")
   if (requestedHeaders) res.setHeader("Access-Control-Allow-Headers", requestedHeaders)
-  res.setHeader("Vary", "Origin")
+  res.vary("Origin")
+  res.vary("Access-Control-Request-Method")
+  res.vary("Access-Control-Request-Headers")
   res.sendStatus(204)
 })
 
-app.use(cors({origin:"https://mediax.wuaze.com"}))
+app.use(cors(corsOptions))
 app.use(express.json({ limit: "15mb" }))
+app.use(express.urlencoded({ extended: false, limit: "15mb" }))
 
 app.get("/api/auth/health", (req, res) => {
   res.status(200).json({ status: apiReady ? "success" : "starting", ready: apiReady })
