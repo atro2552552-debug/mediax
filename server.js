@@ -26,6 +26,11 @@ app.get("/api/auth/health", (req, res) => {
   res.status(200).json({ status: apiReady ? "success" : "starting", ready: apiReady })
 })
 
+app.get("/api/auth/ready", (req, res) => {
+  const statusCode = apiReady ? 200 : 503
+  res.status(statusCode).json({ status: apiReady ? "success" : "not_ready", ready: apiReady })
+})
+
 app.use("/api/auth", (req, res, next) => {
   if (!apiReady) {
     return res.status(503).json({
